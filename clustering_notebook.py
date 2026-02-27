@@ -2,7 +2,7 @@
 Unsupervised Learning — Clustering Algorithms
 Course: CSC564 — Machine Learning | King Saud University
 Reference: Introduction to Machine Learning with Python — Chapter 3 (pp. 168–207)
-
+GitHub: https://github.com/YOUR_USERNAME/ClusteringInDBSCAN
 """
 
 import numpy as np
@@ -121,8 +121,9 @@ plt.tight_layout()
 plt.savefig('plot_1_1_kmeans_final.png', dpi=150, bbox_inches='tight')
 plt.show()
 
+
 # ── 1.2 k-Means Failure Cases ──
-print("\n1.3 k-Means Failure Cases")
+print("\n1.2 k-Means Failure Cases")
 
 fig, axes = plt.subplots(1, 3, figsize=(18, 5))
 
@@ -151,7 +152,7 @@ for ax in axes:
 plt.suptitle('k-Means Failure Cases — When Spherical Assumption Breaks',
              fontsize=16, fontweight='bold', y=1.03)
 plt.tight_layout()
-plt.savefig('plot_1_3_kmeans_failures.png', dpi=150, bbox_inches='tight')
+plt.savefig('plot_1_2_kmeans_failures.png', dpi=150, bbox_inches='tight')
 plt.show()
 
 
@@ -395,11 +396,16 @@ plt.show()
 # ── 3.5 DBSCAN Core / Border / Noise Visualization ──
 print("3.5 DBSCAN Core / Border / Noise Visualization")
 
-X_demo, y_demo = make_moons(n_samples=200, noise=0.12, random_state=42)
-scaler_demo = StandardScaler()
-X_demo_scaled = scaler_demo.fit_transform(X_demo)
+# Use eps=0.3 and noise=0.1 to get a clear mix of core, border, AND noise points.
+# (The old version with eps=0.4/noise=0.12 had 0 noise — defeating the purpose!)
+from sklearn.metrics import pairwise_distances as pdist_full
 
-db_demo = DBSCAN(eps=0.4, min_samples=5)
+X_demo, _ = make_moons(n_samples=200, noise=0.1, random_state=42)
+X_demo_scaled = StandardScaler().fit_transform(X_demo)
+
+EPS_DEMO = 0.3
+MIN_S_DEMO = 5
+db_demo = DBSCAN(eps=EPS_DEMO, min_samples=MIN_S_DEMO)
 labels_demo = db_demo.fit_predict(X_demo_scaled)
 
 core_mask = np.zeros(len(labels_demo), dtype=bool)
@@ -407,33 +413,91 @@ core_mask[db_demo.core_sample_indices_] = True
 noise_mask = labels_demo == -1
 border_mask = (~core_mask) & (~noise_mask)
 
-fig, ax = plt.subplots(1, 1, figsize=(10, 8))
+# Compute pairwise distances for neighbor counting
+dists_demo = pdist_full(X_demo_scaled)
+
+# Pick annotated examples from DIFFERENT regions of the plot
+# Core: dense upper area
+best_core = db_demo.core_sample_indices_[0]
+for idx in db_demo.core_sample_indices_:
+    x, y = X_demo_scaled[idx]
+    if -0.8 < x < -0.2 and 1.0 < y < 1.5 and np.sum(dists_demo[idx] <= EPS_DEMO) >= 6:
+        best_core = idx; break
+
+# Border: bottom-left edge
+best_border = np.where(border_mask)[0][0]
+for idx in np.where(border_mask)[0]:
+    x, y = X_demo_scaled[idx]
+    if x < -1.3 and y < 0:
+        best_border = idx; break
+
+# Noise: most isolated point on the right
+best_noise, best_iso = np.where(noise_mask)[0][0], 0
+for idx in np.where(noise_mask)[0]:
+    x, y = X_demo_scaled[idx]
+    if x > 0.5:
+        min_d = np.sort(dists_demo[idx])[1]
+        if min_d > best_iso:
+            best_iso = min_d; best_noise = idx
+
+core_n = np.sum(dists_demo[best_core] <= EPS_DEMO)
+border_n = np.sum(dists_demo[best_border] <= EPS_DEMO)
+noise_n = np.sum(dists_demo[best_noise] <= EPS_DEMO)
+print(f'  Core example:   {core_n} pts in eps (>= {MIN_S_DEMO} → core)')
+print(f'  Border example: {border_n} pts in eps (< {MIN_S_DEMO}, but near a core → border)')
+print(f'  Noise example:  {noise_n} pts in eps (< {MIN_S_DEMO}, no core nearby → noise)')
+
+# ── PLOT ──
+# KEY FIX: color by POINT TYPE (core/border/noise), NOT by cluster label.
+# The old version colored by cluster, which confused the yellow core point —
+# it looked like it had only 3 yellow neighbors, but neighbors of ANY cluster count!
+fig, ax = plt.subplots(figsize=(14, 9))
 
 ax.scatter(X_demo_scaled[core_mask, 0], X_demo_scaled[core_mask, 1],
-           c=labels_demo[core_mask], cmap='viridis', s=100,
-           edgecolors='black', linewidth=1,
-           label=f'Core Points ({core_mask.sum()})', zorder=3)
-
+           c='#2166AC', s=70, edgecolors='black', linewidth=0.4,
+           label=f'Core ({core_mask.sum()}) — >= {MIN_S_DEMO} pts within eps', zorder=3, alpha=0.75)
 ax.scatter(X_demo_scaled[border_mask, 0], X_demo_scaled[border_mask, 1],
-           c=labels_demo[border_mask], cmap='viridis', s=50,
-           edgecolors='gray', linewidth=1, marker='s',
-           label=f'Border Points ({border_mask.sum()})', zorder=2)
-
+           c='#FDAE61', s=110, edgecolors='black', linewidth=1, marker='s',
+           label=f'Border ({border_mask.sum()}) — < {MIN_S_DEMO} pts, but near a core point', zorder=4)
 ax.scatter(X_demo_scaled[noise_mask, 0], X_demo_scaled[noise_mask, 1],
-           c='red', s=80, marker='X', linewidth=1,
-           label=f'Noise Points ({noise_mask.sum()})', zorder=4)
+           c='#D73027', s=130, edgecolors='black', linewidth=1.5, marker='X',
+           label=f'Noise ({noise_mask.sum()}) — < {MIN_S_DEMO} pts AND not near any core', zorder=5)
 
-for idx in db_demo.core_sample_indices_[:2]:
-    circle = plt.Circle((X_demo_scaled[idx, 0], X_demo_scaled[idx, 1]),
-                         0.4, fill=False, color='blue', linewidth=1.5,
-                         linestyle='--', alpha=0.5)
-    ax.add_patch(circle)
+# Annotated CORE example
+cx, cy = X_demo_scaled[best_core]
+ax.add_patch(plt.Circle((cx, cy), EPS_DEMO, fill=True, facecolor='#2166AC', alpha=0.1,
+             edgecolor='#2166AC', linewidth=2.5, linestyle='--', zorder=2))
+ax.plot(cx, cy, 'o', color='#2166AC', markersize=14, markeredgecolor='white', markeredgewidth=2.5, zorder=8)
+ax.annotate(f'CORE POINT\n{core_n} pts within eps (>= {MIN_S_DEMO}) ✓\nStarts or joins a cluster',
+            xy=(cx, cy), xytext=(cx + 1.0, cy + 0.5), fontsize=11, fontweight='bold', color='#2166AC',
+            arrowprops=dict(arrowstyle='->', color='#2166AC', lw=2.5),
+            bbox=dict(boxstyle='round,pad=0.4', facecolor='#EBF0FA', edgecolor='#2166AC', linewidth=2), zorder=10)
 
-ax.set_xlabel('Feature 0', fontsize=13); ax.set_ylabel('Feature 1', fontsize=13)
-ax.set_title('DBSCAN Point Types (eps=0.4, min_samples=5)\n'
-             'Blue dashed circles = eps neighborhood',
-             fontsize=14, fontweight='bold')
-ax.legend(fontsize=12, loc='upper right')
+# Annotated BORDER example
+bx, by = X_demo_scaled[best_border]
+ax.add_patch(plt.Circle((bx, by), EPS_DEMO, fill=True, facecolor='#FDAE61', alpha=0.12,
+             edgecolor='#E08214', linewidth=2.5, linestyle='--', zorder=2))
+ax.plot(bx, by, 's', color='#FDAE61', markersize=14, markeredgecolor='black', markeredgewidth=2, zorder=8)
+ax.annotate(f'BORDER POINT\n{border_n} pts within eps (< {MIN_S_DEMO}) ✗\nBut within eps of a core point',
+            xy=(bx, by), xytext=(bx + 0.5, by - 0.9), fontsize=11, fontweight='bold', color='#CC6600',
+            arrowprops=dict(arrowstyle='->', color='#CC6600', lw=2.5),
+            bbox=dict(boxstyle='round,pad=0.4', facecolor='#FFF5E6', edgecolor='#CC6600', linewidth=2), zorder=10)
+
+# Annotated NOISE example
+nx, ny = X_demo_scaled[best_noise]
+ax.add_patch(plt.Circle((nx, ny), EPS_DEMO, fill=True, facecolor='#D73027', alpha=0.08,
+             edgecolor='#D73027', linewidth=2.5, linestyle='--', zorder=2))
+ax.plot(nx, ny, 'X', color='#D73027', markersize=16, markeredgecolor='black', markeredgewidth=1.5, zorder=8)
+ax.annotate(f'NOISE POINT\n{noise_n} pt within eps (< {MIN_S_DEMO}) ✗\nNo core point nearby either',
+            xy=(nx, ny), xytext=(nx - 1.5, ny + 0.8), fontsize=11, fontweight='bold', color='#D73027',
+            arrowprops=dict(arrowstyle='->', color='#D73027', lw=2.5),
+            bbox=dict(boxstyle='round,pad=0.4', facecolor='#FFEEEE', edgecolor='#D73027', linewidth=2), zorder=10)
+
+ax.set_xlabel('Feature 0', fontsize=14); ax.set_ylabel('Feature 1', fontsize=14)
+ax.set_title(f'DBSCAN Point Types (eps={EPS_DEMO}, min_samples={MIN_S_DEMO})\n'
+             f'Dashed circles = eps neighborhood — count ALL points inside',
+             fontsize=15, fontweight='bold')
+ax.legend(fontsize=12, loc='upper left', framealpha=0.95, edgecolor='gray')
 plt.tight_layout()
 plt.savefig('plot_3_5_point_types.png', dpi=150, bbox_inches='tight')
 plt.show()
