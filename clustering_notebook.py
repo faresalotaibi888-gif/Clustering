@@ -1,8 +1,8 @@
 """
 Unsupervised Learning — Clustering Algorithms
-Course: CSC564 — ML with Python | King Saud University
+Course: CSC582 — Data Warehousing and Mining | King Saud University
 Reference: Introduction to Machine Learning with Python — Chapter 3 (pp. 168–207)
-
+GitHub: https://github.com/YOUR_USERNAME/ClusteringInDBSCAN
 """
 
 import numpy as np
@@ -122,8 +122,46 @@ plt.savefig('plot_1_1_kmeans_final.png', dpi=150, bbox_inches='tight')
 plt.show()
 
 
+# ── 1.2 sklearn k-Means + Elbow Method ──
+print("\n1.2 Elbow Method — Choosing Optimal k")
 
-# ── 1.2 k-Means Failure Cases ──
+X_elbow, _ = make_blobs(n_samples=300, centers=4, cluster_std=0.60, random_state=0)
+
+inertias = []
+sil_scores = []
+K_range = range(2, 11)
+
+for k in K_range:
+    km = KMeans(n_clusters=k, random_state=0, n_init=10)
+    labels = km.fit_predict(X_elbow)
+    inertias.append(km.inertia_)
+    sil_scores.append(silhouette_score(X_elbow, labels))
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+
+ax1.plot(K_range, inertias, 'bo-', linewidth=2, markersize=8)
+ax1.set_title('Elbow Method — Inertia', fontsize=14, fontweight='bold')
+ax1.set_xlabel('Number of Clusters (k)')
+ax1.set_ylabel('Inertia (Within-Cluster Sum of Squares)')
+ax1.axvline(x=4, color='red', linestyle='--', label='Elbow at k=4')
+ax1.legend()
+
+ax2.plot(K_range, sil_scores, 'go-', linewidth=2, markersize=8)
+ax2.set_title('Silhouette Score vs k', fontsize=14, fontweight='bold')
+ax2.set_xlabel('Number of Clusters (k)')
+ax2.set_ylabel('Silhouette Score')
+ax2.axvline(x=4, color='red', linestyle='--', label='Best at k=4')
+ax2.legend()
+
+plt.suptitle('How to Choose the Best k', fontsize=16, fontweight='bold', y=1.03)
+plt.tight_layout()
+plt.savefig('plot_1_2_elbow.png', dpi=150, bbox_inches='tight')
+plt.show()
+
+print(f'Best silhouette score: {max(sil_scores):.3f} at k={list(K_range)[np.argmax(sil_scores)]}')
+
+
+# ── 1.3 k-Means Failure Cases ──
 print("\n1.3 k-Means Failure Cases")
 
 fig, axes = plt.subplots(1, 3, figsize=(18, 5))
@@ -212,22 +250,27 @@ plt.show()
 # ── 2.3 Agglomerative on Larger Dataset + Linkage Comparison ──
 print("\n2.3 Linkage Comparison (Ward vs Complete vs Average)")
 
-X_agg2, y_agg2 = make_blobs(n_samples=150, centers=3, random_state=1)
+# Use ELONGATED (anisotropic) blobs — linkage choice matters here!
+# With well-separated round blobs all linkages give identical results.
+X_aniso_raw, _ = make_blobs(n_samples=150, centers=3, random_state=170)
+transformation = [[0.60834549, -0.63667341], [-0.40887718, 0.85253229]]
+X_aniso = np.dot(X_aniso_raw, transformation)
 
 fig, axes = plt.subplots(1, 3, figsize=(18, 5))
 linkage_types = ['ward', 'complete', 'average']
 
 for ax, link_type in zip(axes, linkage_types):
     agg = AgglomerativeClustering(n_clusters=3, linkage=link_type)
-    labels = agg.fit_predict(X_agg2)
-    ax.scatter(X_agg2[:, 0], X_agg2[:, 1], c=labels, s=50, cmap='viridis',
+    labels = agg.fit_predict(X_aniso)
+    ax.scatter(X_aniso[:, 0], X_aniso[:, 1], c=labels, s=50, cmap='viridis',
                edgecolors='k', linewidth=0.3)
     ax.set_title(f'Linkage: {link_type.capitalize()}', fontsize=14, fontweight='bold')
     ax.set_xlabel('Feature 1')
     ax.set_ylabel('Feature 2')
 
-plt.suptitle('Agglomerative Clustering — Linkage Comparison (k=3)',
-             fontsize=16, fontweight='bold', y=1.03)
+plt.suptitle('Agglomerative Clustering — Linkage Comparison on Elongated Data (k=3)\n'
+             'Notice: each linkage draws different boundaries!',
+             fontsize=16, fontweight='bold', y=1.05)
 plt.tight_layout()
 plt.savefig('plot_2_3_linkage_comparison.png', dpi=150, bbox_inches='tight')
 plt.show()
