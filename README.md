@@ -23,7 +23,7 @@ Click below to open the notebook directly in Colab:
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/faresalotaibi888-gif/Clustering/blob/main/DBSCAN_Clustering.ipynb)
 
-> **Note:** Replace `YOUR_USERNAME` with your actual GitHub username in the link above.
+
 
 ## 📁 Repository Structure
 
