@@ -435,12 +435,12 @@ for idx in np.where(noise_mask)[0]:
         if min_d > best_iso:
             best_iso = min_d; best_noise = idx
 
-core_n = np.sum(dists_demo[best_core] <= EPS_DEMO)
-border_n = np.sum(dists_demo[best_border] <= EPS_DEMO)
-noise_n = np.sum(dists_demo[best_noise] <= EPS_DEMO)
-print(f'  Core example:   {core_n} pts in eps (>= {MIN_S_DEMO} → core)')
-print(f'  Border example: {border_n} pts in eps (< {MIN_S_DEMO}, but near a core → border)')
-print(f'  Noise example:  {noise_n} pts in eps (< {MIN_S_DEMO}, no core nearby → noise)')
+core_n = np.sum(dists_demo[best_core] <= EPS_DEMO)   # includes self (sklearn convention)
+border_n = np.sum(dists_demo[best_border] <= EPS_DEMO)  # includes self
+noise_n = np.sum(dists_demo[best_noise] <= EPS_DEMO)    # includes self
+print(f'  Core example:   {core_n} pts in eps including itself (>= {MIN_S_DEMO} → core)')
+print(f'  Border example: {border_n} pts in eps including itself (< {MIN_S_DEMO}, but near a core → border)')
+print(f'  Noise example:  {noise_n} pts in eps including itself (< {MIN_S_DEMO}, no core nearby → noise)')
 
 # ── PLOT ──
 # KEY FIX: color by POINT TYPE (core/border/noise), NOT by cluster label.
@@ -450,7 +450,7 @@ fig, ax = plt.subplots(figsize=(14, 9))
 
 ax.scatter(X_demo_scaled[core_mask, 0], X_demo_scaled[core_mask, 1],
            c='#2166AC', s=70, edgecolors='black', linewidth=0.4,
-           label=f'Core ({core_mask.sum()}) — >= {MIN_S_DEMO} pts within eps', zorder=3, alpha=0.75)
+           label=f'Core ({core_mask.sum()}) — >= {MIN_S_DEMO} pts in eps (incl. self)', zorder=3, alpha=0.75)
 ax.scatter(X_demo_scaled[border_mask, 0], X_demo_scaled[border_mask, 1],
            c='#FDAE61', s=110, edgecolors='black', linewidth=1, marker='s',
            label=f'Border ({border_mask.sum()}) — < {MIN_S_DEMO} pts, but near a core point', zorder=4)
@@ -463,7 +463,7 @@ cx, cy = X_demo_scaled[best_core]
 ax.add_patch(plt.Circle((cx, cy), EPS_DEMO, fill=True, facecolor='#2166AC', alpha=0.1,
              edgecolor='#2166AC', linewidth=2.5, linestyle='--', zorder=2))
 ax.plot(cx, cy, 'o', color='#2166AC', markersize=14, markeredgecolor='white', markeredgewidth=2.5, zorder=8)
-ax.annotate(f'CORE POINT\n{core_n} pts within eps (>= {MIN_S_DEMO}) ✓\nStarts or joins a cluster',
+ax.annotate(f'CORE POINT\n{core_n} pts in eps (>= {MIN_S_DEMO}) ✓\nIncludes itself — core!',
             xy=(cx, cy), xytext=(cx + 1.0, cy + 0.5), fontsize=11, fontweight='bold', color='#2166AC',
             arrowprops=dict(arrowstyle='->', color='#2166AC', lw=2.5),
             bbox=dict(boxstyle='round,pad=0.4', facecolor='#EBF0FA', edgecolor='#2166AC', linewidth=2), zorder=10)
@@ -473,7 +473,7 @@ bx, by = X_demo_scaled[best_border]
 ax.add_patch(plt.Circle((bx, by), EPS_DEMO, fill=True, facecolor='#FDAE61', alpha=0.12,
              edgecolor='#E08214', linewidth=2.5, linestyle='--', zorder=2))
 ax.plot(bx, by, 's', color='#FDAE61', markersize=14, markeredgecolor='black', markeredgewidth=2, zorder=8)
-ax.annotate(f'BORDER POINT\n{border_n} pts within eps (< {MIN_S_DEMO}) ✗\nBut within eps of a core point',
+ax.annotate(f'BORDER POINT\n{border_n} pts in eps (< {MIN_S_DEMO}) ✗\nBut within eps of a core point',
             xy=(bx, by), xytext=(bx + 0.5, by - 0.9), fontsize=11, fontweight='bold', color='#CC6600',
             arrowprops=dict(arrowstyle='->', color='#CC6600', lw=2.5),
             bbox=dict(boxstyle='round,pad=0.4', facecolor='#FFF5E6', edgecolor='#CC6600', linewidth=2), zorder=10)
@@ -483,12 +483,13 @@ nx, ny = X_demo_scaled[best_noise]
 ax.add_patch(plt.Circle((nx, ny), EPS_DEMO, fill=True, facecolor='#D73027', alpha=0.08,
              edgecolor='#D73027', linewidth=2.5, linestyle='--', zorder=2))
 ax.plot(nx, ny, 'X', color='#D73027', markersize=16, markeredgecolor='black', markeredgewidth=1.5, zorder=8)
-ax.annotate(f'NOISE POINT\n{noise_n} pt within eps (< {MIN_S_DEMO}) ✗\nNo core point nearby either',
+ax.annotate(f'NOISE POINT\n{noise_n} pts in eps (< {MIN_S_DEMO}) ✗\nNo core point nearby either',
             xy=(nx, ny), xytext=(nx - 1.5, ny + 0.8), fontsize=11, fontweight='bold', color='#D73027',
             arrowprops=dict(arrowstyle='->', color='#D73027', lw=2.5),
             bbox=dict(boxstyle='round,pad=0.4', facecolor='#FFEEEE', edgecolor='#D73027', linewidth=2), zorder=10)
 
 ax.set_xlabel('Feature 0', fontsize=14); ax.set_ylabel('Feature 1', fontsize=14)
+ax.set_aspect('equal')  # IMPORTANT: makes eps circles render as circles, not ovals
 ax.set_title(f'DBSCAN Point Types (eps={EPS_DEMO}, min_samples={MIN_S_DEMO})\n'
              f'Dashed circles = eps neighborhood — count ALL points inside',
              fontsize=15, fontweight='bold')
@@ -620,9 +621,17 @@ axes[1, 0].set_title(f'Agglomerative — ARI: {ari_agg_iris:.2f}', fontsize=14)
 labels_db_iris = DBSCAN(eps=0.9, min_samples=5).fit_predict(X_iris_scaled)
 ari_db_iris = adjusted_rand_score(y_iris, labels_db_iris)
 n_noise_iris = list(labels_db_iris).count(-1)
-axes[1, 1].scatter(X_iris_2d[:, 0], X_iris_2d[:, 1], c=labels_db_iris, cmap='viridis', s=50,
+n_clusters_iris = len(set(labels_db_iris)) - (1 if -1 in labels_db_iris else 0)
+# Plot clusters and noise SEPARATELY so noise shows as red X, not a fake 3rd cluster
+noise_iris = labels_db_iris == -1
+cluster_iris = ~noise_iris
+axes[1, 1].scatter(X_iris_2d[cluster_iris, 0], X_iris_2d[cluster_iris, 1],
+                    c=labels_db_iris[cluster_iris], cmap='viridis', s=50,
                     edgecolors='black', linewidth=0.5)
-axes[1, 1].set_title(f'DBSCAN — ARI: {ari_db_iris:.2f} ({n_noise_iris} noise pts)', fontsize=14)
+axes[1, 1].scatter(X_iris_2d[noise_iris, 0], X_iris_2d[noise_iris, 1],
+                    c='red', marker='X', s=80, linewidth=1, label=f'Noise ({n_noise_iris})')
+axes[1, 1].set_title(f'DBSCAN ({n_clusters_iris} clusters) — ARI: {ari_db_iris:.2f} ({n_noise_iris} noise)', fontsize=14)
+axes[1, 1].legend(fontsize=10, loc='lower right')
 
 for ax in axes.ravel():
     ax.set_xlabel('PCA Component 1'); ax.set_ylabel('PCA Component 2')
