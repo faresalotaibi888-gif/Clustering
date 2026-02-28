@@ -169,7 +169,7 @@ print("\n" + "=" * 65)
 print("2.1 Basic Agglomerative Clustering")
 print("=" * 65)
 
-X_agg, y_agg = make_blobs(n_samples=8, centers=3, random_state=1)
+X_agg, y_agg = make_blobs(random_state=1)
 
 agg = AgglomerativeClustering(n_clusters=3, linkage='ward')
 labels_agg = agg.fit_predict(X_agg)
@@ -178,12 +178,7 @@ plt.figure(figsize=(6, 5))
 plt.scatter(X_agg[:, 0], X_agg[:, 1], c=labels_agg, s=100, cmap='viridis',
             edgecolors='k', linewidth=0.5)
 
-# Add point labels
-for i, (x, y_coord) in enumerate(X_agg):
-    plt.text(x + 0.1, y_coord + 0.1, str(i), fontsize=12, fontweight='bold')
-
-plt.title("Agglomerative Clustering (3 Clusters) with Point Labels",
-          fontsize=14, fontweight='bold')
+plt.title("Agglomerative Clustering", fontsize=14, fontweight='bold')
 plt.xlabel("Feature 1")
 plt.ylabel("Feature 2")
 plt.tight_layout()
@@ -198,9 +193,9 @@ print("\n2.2 Dendrogram (Ward Linkage)")
 
 linked = linkage(X_agg, method='ward')
 
-plt.figure(figsize=(8, 5))
+plt.figure(figsize=(9, 6))
 dendrogram(linked)
-plt.title("Dendrogram (Ward Linkage)", fontsize=14, fontweight='bold')
+plt.title("Dendrogram with (Ward)", fontsize=14, fontweight='bold')
 plt.xlabel("Data Points")
 plt.ylabel("Distance")
 plt.tight_layout()
