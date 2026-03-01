@@ -38,9 +38,9 @@ print("1.1 Manual k-Means with Decision Boundaries")
 print("=" * 65)
 
 # Generate Synthetic Data (300 samples, 4 natural clusters)
-X_km, _ = make_blobs(n_samples=300, centers=4, cluster_std=0.60, random_state=0)
+X_km, _ = make_blobs(n_samples=300, centers=3, cluster_std=0.60, random_state=0)
 
-k_value = 4  # number of clusters
+k_value = 3  # number of clusters
 
 # Initialize: pick random points as starting centers
 rng = np.random.RandomState(42)
